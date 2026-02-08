@@ -1,48 +1,54 @@
 const express = require('express');
-const cors = require('cors');
 const mongoose = require('mongoose');
-const helmet = require('helmet');
-const morgan = require('morgan');
+const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
 
-// Middleware
-app.use(helmet());
+// 中间件
 app.use(cors());
 app.use(express.json());
-app.use(morgan('dev'));
 
-// Database connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/portfolio', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+// 数据库连接
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log('MongoDB Connected'))
+  .catch(err => console.error('MongoDB Error:', err));
 
-const db = mongoose.connection;
-db.on('error', console.error.bind(console, 'MongoDB connection error:'));
-db.once('open', () => {
-  console.log('Connected to MongoDB');
-});
+// 导入路由
+const blogsRouter = require('./routes/blogs');
+const diariesRouter = require('./routes/diaries');
+const crawlerRouter = require('./routes/crawler');
+const searchRouter = require('./routes/search');
 
-// Routes
-app.use('/api/blogs', require('./routes/blogs'));
-app.use('/api/diaries', require('./routes/diaries'));
-app.use('/api/crawler', require('./routes/crawler'));
-app.use('/api/search', require('./routes/search'));
+// 使用路由
+app.use('/api/blogs', blogsRouter);
+app.use('/api/diaries', diariesRouter);
+app.use('/api/crawler', crawlerRouter);
+app.use('/api/search', searchRouter);
 
-// Health check
+// 健康检查
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({ status: 'OK', timestamp: new Date() });
 });
 
-// Error handling
+// 根路径
+app.get('/', (req, res) => {
+  res.json({ message: 'Zhelong Backend API', version: '1.0' });
+});
+
+// 错误处理
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Something went wrong!' });
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// 导出app（Vercel需要）
+module.exports = app;
+
+// 本地开发用
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
